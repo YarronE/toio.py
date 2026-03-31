@@ -122,6 +122,34 @@ class TOIO_COMMUNICATOR:
             self.active = False
             print("Process joined.")
 
+    def _cleanup_bridge_socket(self):
+        self.active = False
+        conn = getattr(self, 'conn', None)
+        if conn is not None:
+            try:
+                conn.close()
+            except OSError:
+                pass
+            self.conn = None
+
+    def abort_connect(self):
+        """After accept(), if BLE gives up (e.g. no cube), close sockets and reap the child."""
+        self._cleanup_bridge_socket()
+        s = getattr(self, 's', None)
+        if s is not None:
+            try:
+                s.close()
+            except OSError:
+                pass
+            self.s = None
+        p = getattr(self, 'p', None)
+        if p is not None:
+            p.join(timeout=3)
+            if p.is_alive():
+                p.terminate()
+                p.join(timeout=1)
+        self.clear()
+
     def connect(self, num = None, port = None):
         self.clear()
         self.socketPort = self.port
@@ -147,25 +175,41 @@ class TOIO_COMMUNICATOR:
         return
 
     def send(self, data, wait=True):
-        if self.active:
-            self.conn.sendall(str(self.mid)+':'+data+',')
-            if not wait:
-                self.mid += 1
-                return None
-            loop = True
-            while loop:
-                recv = self.conn.recv(1024)
-                m = message(recv,self.buf)
-                for i in m:
-                    self.log.append(i)
-                    try:
-                        if self.mid == int(i[0]):
-                            loop = False
-                    except:
-                        print("error ",i)
+        if not self.active:
+            return None
+        _bridge_err = ConnectionError(
+            "BLE bridge socket closed (no toio cube found or cube powered off). "
+            "Turn on the cube and retry, or call noToio() before connect for virtual mode."
+        )
+        try:
+            payload = data if isinstance(data, str) else data.decode("utf-8", errors="replace")
+            self.conn.sendall((str(self.mid) + ":" + payload + ",").encode())
+        except (ConnectionResetError, BrokenPipeError, OSError) as e:
+            self._cleanup_bridge_socket()
+            raise _bridge_err from e
+        if not wait:
             self.mid += 1
-            return i[1]
-        return None
+            return None
+        loop = True
+        while loop:
+            try:
+                recv = self.conn.recv(1024)
+            except (ConnectionResetError, BrokenPipeError, OSError) as e:
+                self._cleanup_bridge_socket()
+                raise _bridge_err from e
+            if not recv:
+                self._cleanup_bridge_socket()
+                raise _bridge_err
+            m = message(recv, self.buf)
+            for i in m:
+                self.log.append(i)
+                try:
+                    if self.mid == int(i[0]):
+                        loop = False
+                except (TypeError, ValueError):
+                    print("error ", i)
+        self.mid += 1
+        return i[1]
 
     def ble_process(self):
         self.ble = Adafruit_BluefruitLE.get_provider()

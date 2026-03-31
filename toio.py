@@ -33,7 +33,12 @@ class TOIO:
         if not self.active:
             self.tc.connect(num, port)
             self.connect_num = num
-            self.toio_num = self.get_connected_num()
+            try:
+                self.toio_num = self.get_connected_num()
+            except ConnectionError as e:
+                print(e)
+                self.tc.abort_connect()
+                return
             print("Connected num :{0}".format(self.toio_num))
             if num is not None and self.toio_num > num:
                 print("Please change assign ( edit_assign() )")
