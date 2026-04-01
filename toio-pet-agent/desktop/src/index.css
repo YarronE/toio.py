@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: transparent;
+  -webkit-app-region: no-drag;
+  user-select: none;
+}

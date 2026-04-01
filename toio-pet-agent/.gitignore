@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (desktop app)
+desktop/node_modules/
+desktop/dist/
+desktop/out/
+
+# Generated assets
+assets/generated/
+assets/models/
+assets/sprites/
+
+# Cache
+.cache/
+.ruff_cache/
